@@ -1,2 +1,2 @@
-# random_circles_webGL
-Using WebGL to display random circles
+# WebGL Metaballs
+Using WebGL to display random animated circles that form metaballs
