@@ -1,10 +1,11 @@
 let WIDTH;
 let HEIGHT;
-let controls = {};
+const controls = {};
 let refresh = false;
 
-//TODO values in GLSL come from uniforms
-//TODO error check random
+//TODO add to current state on refresh instead of generating new circles
+//TODO add toggle for metaballs vs circles
+//TODO organize controls and limit max mins
 function initInput(name, defaultValue) {
   controls[name] = defaultValue;
   let element = document.querySelector(`#${name}`);
@@ -12,28 +13,32 @@ function initInput(name, defaultValue) {
     element.value = controls[name];
     element.nextElementSibling.textContent = controls[name];
 
-    element.addEventListener("input", function () {
-      this.nextElementSibling.textContent = this.value;
+    element.addEventListener("input", (event) => {
+      event.target.nextElementSibling.textContent = event.target.value;
     });
 
     element.addEventListener("change", (event) => {
-      console.log(`changed value of ${name} to ${event.target.value}`);
+      // console.log(`changed value of ${name} to ${event.target.value}`);
+      controls[name] = event.target.value;
       refresh = true;
+      // if (name === "numCircles" || name === "threshold") {
+      //   reCompile = true;
+      // }
     });
   }
 }
 
 function linkControls() {
   const defaults = [
-    {name: "numCircles", value: 10},
-    {name: "circleMinR", value: 0.02},
-    {name: "circleMaxR", value: 0.17},
-    {name: "threshold", value: 1.0},
-    {name: "padding", value: 30},
-    {name: "minVX", value: 1},
-    {name: "maxVX", value: 6},
-    {name: "minVY", value: 1},
-    {name: "maxVY", value: 6},
+    { name: "numCircles", value: 10 },
+    { name: "circleMinR", value: 0.02 },
+    { name: "circleMaxR", value: 0.17 },
+    { name: "threshold", value: 1.0 },
+    { name: "padding", value: 30 },
+    { name: "minVX", value: 1 },
+    { name: "maxVX", value: 6 },
+    { name: "minVY", value: 1 },
+    { name: "maxVY", value: 6 },
   ];
 
   defaults.forEach((element) => {
@@ -73,9 +78,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }`;
 
   const fragmentCode = `  
-    precision highp float;   
-    const int num = ${controls.numCircles};
-    uniform vec3 circles[num];
+    precision highp float;  
+    uniform int numCircles; 
+    uniform float threshold;
+
+    const int maxCircles = 60;
+
+    uniform vec3 circles[maxCircles];
     
     
     void main()
@@ -84,14 +93,16 @@ document.addEventListener("DOMContentLoaded", () => {
       float y = gl_FragCoord.y;
       float v = 0.0;
 
-      for (int i = 0; i < num; i++) {
+      for (int i = 0; i < maxCircles; i++) {
         vec3 circle = circles[i];
         float dx = circle.x - x;
         float dy = circle.y - y;
         float r = circle.z;
         v += r*r/(dx*dx + dy*dy);
+
+        if (i == numCircles-1) break;
       }
-      if (v > ${Number.isInteger(controls.threshold) ? controls.threshold + ".0" : controls.threshold}) {
+      if (v > threshold) {
           gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);
       } else {
           gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0);
@@ -124,10 +135,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   gl.useProgram(program);
 
-  // generate circles
+  // uniform circles[float]
   let circles = generateCircles();
-
   const uniformLocation = gl.getUniformLocation(program, "circles");
+
+  // uniform int numCircles
+  const numCirclesHandle = gl.getUniformLocation(program, "numCircles");
+  gl.uniform1i(numCirclesHandle, controls.numCircles);
+
+  // uniform float threshold
+  const thresholdHandle = gl.getUniformLocation(program, "threshold");
+  gl.uniform1f(thresholdHandle, controls.threshold);
 
   /**
    * Simulation step, data transfer, and drawing
@@ -136,6 +154,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const step = function () {
     if (refresh) {
       refresh = false;
+      // if (reCompile) {
+      gl.uniform1i(numCirclesHandle, controls.numCircles);
+      gl.uniform1f(thresholdHandle, controls.threshold);
+      //   reCompile = false;
+      // }
       circles = generateCircles();
     } else {
       // Update positions and speeds
@@ -146,13 +169,19 @@ document.addEventListener("DOMContentLoaded", () => {
         circle.y += circle.vy;
 
         // not inside x bounds
-        if (circle.x - circle.r < controls.padding || circle.x + circle.r > WIDTH - controls.padding) {
+        if (
+          circle.x - circle.r < controls.padding ||
+          circle.x + circle.r > WIDTH - controls.padding
+        ) {
           // change direction
           circle.vx *= -1;
         }
 
         // not inside y bounds
-        if (circle.y - circle.r < controls.padding || circle.y + circle.r > HEIGHT - controls.padding) {
+        if (
+          circle.y - circle.r < controls.padding ||
+          circle.y + circle.r > HEIGHT - controls.padding
+        ) {
           // change direction
           circle.vy *= -1;
         }
@@ -186,9 +215,9 @@ function makeShader(gl, shaderSource, shaderType) {
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     throw new Error(
-      `ERROR compiling ${shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"} shader: ${gl.getShaderInfoLog(
-        shader
-      )}`
+      `ERROR compiling ${
+        shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"
+      } shader: ${gl.getShaderInfoLog(shader)}`
     );
   }
   return shader;
@@ -218,7 +247,9 @@ function makeProgram(gl, vertexShader, fragmentShader, validate = false) {
   if (validate) {
     gl.validateProgram(program);
     if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
-      throw new Error("ERROR validating program: " + gl.getProgramInfoLog(program));
+      throw new Error(
+        "ERROR validating program: " + gl.getProgramInfoLog(program)
+      );
     }
   }
 
@@ -282,7 +313,14 @@ function createAttribute(
  * @param {number} type Buffer type from a GLenum; default is gl.ARRAY_BUFFER
  * @param {number} bufferDataType Buffer data type from a GLenum; default is gl.STATIC_DRAW
  */
-function createBuffer(gl, program, bufferData, attributes, type = gl.ARRAY_BUFFER, bufferDataType = gl.STATIC_DRAW) {
+function createBuffer(
+  gl,
+  program,
+  bufferData,
+  attributes,
+  type = gl.ARRAY_BUFFER,
+  bufferDataType = gl.STATIC_DRAW
+) {
   const buffer = gl.createBuffer();
   gl.bindBuffer(type, buffer);
   gl.bufferData(type, bufferData, bufferDataType);
@@ -293,7 +331,14 @@ function createBuffer(gl, program, bufferData, attributes, type = gl.ARRAY_BUFFE
       throw "Can not find attribute " + attr.name + "#";
     }
 
-    gl.vertexAttribPointer(attrLocation, attr.size, attr.type, attr.normalized, attr.stride, attr.offset);
+    gl.vertexAttribPointer(
+      attrLocation,
+      attr.size,
+      attr.type,
+      attr.normalized,
+      attr.stride,
+      attr.offset
+    );
     gl.enableVertexAttribArray(attrLocation);
   });
 }
@@ -338,7 +383,14 @@ function generateCircles() {
 }
 
 function random(min, max) {
-  return Math.random() * (max - min) + min;
+  let minF = parseFloat(min);
+  let maxF = parseFloat(max);
+  if (minF > maxF) {
+    const temp = maxF;
+    maxF = minF;
+    minF = maxF;
+  }
+  return Math.random() * (maxF - minF) + minF;
 }
 /**
  * given generated circles, returns array of data for uniform
