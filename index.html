@@ -7,19 +7,59 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="a page that uses WebGL to draw random circles on a canvas">
   <title>WebGL stuff</title>
+  <link rel="stylesheet" href="styles/main.css">
   <style>
-    canvas {
-      width: 100%;
-      height: 80vh;
-    }
+
   </style>
 </head>
 
 <body>
   <h1>WebGL stuff</h1>
-  <canvas id="mainCanvas"></canvas>
+  <main>
+    <canvas id="mainCanvas"></canvas>
+    <form class="controls">
+      <label for="numCircles">Num circles</label>
+      <input id="numCircles" type="range" min="0" max="40">
+      <div class="input-value"></div>
+
+      <label for="circleMinR">Circle min radius %</label>
+      <input id="circleMinR" type="range" min="0" max="1" step="0.01">
+      <div class="input-value"></div>
+
+      <label for="circleMaxR">Circle max radius %</label>
+      <input id="circleMaxR" type="range" min="0" max="1" step="0.01">
+      <div class="input-value"></div>
+
+      <label for="threshold">Threshold</label>
+      <input id="threshold" type="range" min="0" max="2" step="0.01">
+      <div class="input-value"></div>
+
+      <label for="padding">Padding (pixels)</label>
+      <input id="padding" type="range" min="0" max="100">
+      <div class="input-value"></div>
+
+      <label for="minVX">Min vx (pixels)</label>
+      <input id="minVX" type="range" min="0" max="20">
+      <div class="input-value"></div>
+
+      <label for="maxVX">Max vx (pixels)</label>
+      <input id="maxVX" type="range" min="0" max="20">
+      <div class="input-value"></div>
+
+      <label for="minVY">Min vy (pixels)</label>
+      <input id="minVY" type="range" min="0" max="20">
+      <div class="input-value"></div>
+
+      <label for="maxVY">Max vy (pixels)</label>
+      <input id="maxVY" type="range" min="0" max="20">
+      <div class="input-value"></div>
+
+
+    </form>
+  </main>
 
   <script src="scripts/app.js"></script>
+
 </body>
 
 </html>

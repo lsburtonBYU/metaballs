@@ -1,23 +1,49 @@
-/**
- * Number of circles to generate
- * @constant {number}
- */
-
-//TODO add distribution of centers, gui
-const NUM_CIRCLES = 10;
-const CIRCLE_MAX_R = 0.17; // % of vmin
-const CIRCLE_MIN_R = 0.02; // % of vmin
-const THRESHOLD = 1.000001;
-const PADDING = 30;
-const MIN_VX = 1;
-const MIN_VY = 3;
-const MAX_VX = 6;
-const MAX_VY = 6;
 let WIDTH;
 let HEIGHT;
+let controls = {};
+let refresh = false;
+
+//TODO values in GLSL come from uniforms
+//TODO error check random
+function initInput(name, defaultValue) {
+  controls[name] = defaultValue;
+  let element = document.querySelector(`#${name}`);
+  if (element) {
+    element.value = controls[name];
+    element.nextElementSibling.textContent = controls[name];
+
+    element.addEventListener("input", function () {
+      this.nextElementSibling.textContent = this.value;
+    });
+
+    element.addEventListener("change", (event) => {
+      console.log(`changed value of ${name} to ${event.target.value}`);
+      refresh = true;
+    });
+  }
+}
+
+function linkControls() {
+  const defaults = [
+    {name: "numCircles", value: 10},
+    {name: "circleMinR", value: 0.02},
+    {name: "circleMaxR", value: 0.17},
+    {name: "threshold", value: 1.0},
+    {name: "padding", value: 30},
+    {name: "minVX", value: 1},
+    {name: "maxVX", value: 6},
+    {name: "minVY", value: 1},
+    {name: "maxVY", value: 6},
+  ];
+
+  defaults.forEach((element) => {
+    initInput(element.name, element.value);
+  });
+}
 
 /** Render canvas when the DOM is loaded and parsed */
 document.addEventListener("DOMContentLoaded", () => {
+  linkControls();
   // Get WebGL context from canvas
   canvas = document.querySelector("#mainCanvas");
   WIDTH = Math.floor(canvas.offsetWidth * window.devicePixelRatio);
@@ -25,6 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
   //TODO better adjustment than this....
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
+
+  canvas.addEventListener("click", (event) => {
+    console.log(event);
+  });
 
   const gl = canvas.getContext("webgl");
 
@@ -44,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const fragmentCode = `  
     precision highp float;   
-    const int num = ${NUM_CIRCLES};
+    const int num = ${controls.numCircles};
     uniform vec3 circles[num];
     
     
@@ -55,13 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
       float v = 0.0;
 
       for (int i = 0; i < num; i++) {
-        vec3 mb = circles[i];
-        float dx = mb.x - x;
-        float dy = mb.y - y;
-        float r = mb.z;
+        vec3 circle = circles[i];
+        float dx = circle.x - x;
+        float dy = circle.y - y;
+        float r = circle.z;
         v += r*r/(dx*dx + dy*dy);
       }
-      if (v > ${THRESHOLD}) {
+      if (v > ${Number.isInteger(controls.threshold) ? controls.threshold + ".0" : controls.threshold}) {
           gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);
       } else {
           gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0);
@@ -95,12 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
   gl.useProgram(program);
 
   // generate circles
-  const circles = generateCircles(
-    NUM_CIRCLES,
-    { max: CIRCLE_MAX_R, min: CIRCLE_MIN_R },
-    { width: WIDTH, height: HEIGHT },
-    PADDING
-  );
+  let circles = generateCircles();
 
   const uniformLocation = gl.getUniformLocation(program, "circles");
 
@@ -109,37 +134,37 @@ document.addEventListener("DOMContentLoaded", () => {
    */
 
   const step = function () {
-    // Update positions and speeds
-    for (let i = 0; i < circles.length; i++) {
-      const circle = circles[i];
+    if (refresh) {
+      refresh = false;
+      circles = generateCircles();
+    } else {
+      // Update positions and speeds
+      for (let i = 0; i < circles.length; i++) {
+        const circle = circles[i];
 
-      circle.x += circle.vx;
-      circle.y += circle.vy;
+        circle.x += circle.vx;
+        circle.y += circle.vy;
 
-      // not inside x bounds
-      if (
-        circle.x - circle.r < PADDING ||
-        circle.x + circle.r > WIDTH - PADDING
-      ) {
-        // change direction
-        circle.vx *= -1;
-      }
+        // not inside x bounds
+        if (circle.x - circle.r < controls.padding || circle.x + circle.r > WIDTH - controls.padding) {
+          // change direction
+          circle.vx *= -1;
+        }
 
-      // not inside y bounds
-      if (
-        circle.y - circle.r < PADDING ||
-        circle.y + circle.r > HEIGHT - PADDING
-      ) {
-        // change direction
-        circle.vy *= -1;
+        // not inside y bounds
+        if (circle.y - circle.r < controls.padding || circle.y + circle.r > HEIGHT - controls.padding) {
+          // change direction
+          circle.vy *= -1;
+        }
       }
     }
+
     // convert to uniform data
     const uniformData = generateUniformData(circles);
 
     gl.uniform3fv(uniformLocation, uniformData);
-
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
     requestAnimationFrame(step);
   };
 
@@ -161,9 +186,9 @@ function makeShader(gl, shaderSource, shaderType) {
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     throw new Error(
-      `ERROR compiling ${
-        shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"
-      } shader: ${gl.getShaderInfoLog(shader)}`
+      `ERROR compiling ${shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"} shader: ${gl.getShaderInfoLog(
+        shader
+      )}`
     );
   }
   return shader;
@@ -193,9 +218,7 @@ function makeProgram(gl, vertexShader, fragmentShader, validate = false) {
   if (validate) {
     gl.validateProgram(program);
     if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
-      throw new Error(
-        "ERROR validating program: " + gl.getProgramInfoLog(program)
-      );
+      throw new Error("ERROR validating program: " + gl.getProgramInfoLog(program));
     }
   }
 
@@ -259,14 +282,7 @@ function createAttribute(
  * @param {number} type Buffer type from a GLenum; default is gl.ARRAY_BUFFER
  * @param {number} bufferDataType Buffer data type from a GLenum; default is gl.STATIC_DRAW
  */
-function createBuffer(
-  gl,
-  program,
-  bufferData,
-  attributes,
-  type = gl.ARRAY_BUFFER,
-  bufferDataType = gl.STATIC_DRAW
-) {
+function createBuffer(gl, program, bufferData, attributes, type = gl.ARRAY_BUFFER, bufferDataType = gl.STATIC_DRAW) {
   const buffer = gl.createBuffer();
   gl.bindBuffer(type, buffer);
   gl.bufferData(type, bufferData, bufferDataType);
@@ -274,17 +290,10 @@ function createBuffer(
   attributes.forEach((attr) => {
     const attrLocation = gl.getAttribLocation(program, attr.name);
     if (attrLocation === -1) {
-      throw "Can not find attribute " + attr.name + ".";
+      throw "Can not find attribute " + attr.name + "#";
     }
 
-    gl.vertexAttribPointer(
-      attrLocation,
-      attr.size,
-      attr.type,
-      attr.normalized,
-      attr.stride,
-      attr.offset
-    );
+    gl.vertexAttribPointer(attrLocation, attr.size, attr.type, attr.normalized, attr.stride, attr.offset);
     gl.enableVertexAttribArray(attrLocation);
   });
 }
@@ -304,33 +313,23 @@ function clearCanvas(gl, color) {
  * the smaller dimension of canvas width and height, the the max
  * radius equals 1/radiusLimits.max * sizeLimit and the min radius is
  * 1/radiusLimits.min * sizeLimit
- * @param {number} NUM_CIRCLES The number of circles to generate
- * @param {Object} radiusLimits Contains min and max values to determine the
- *                              min and max radius relative to the canvas width
- * @param {object} canvasDimension  width and height of canvas
- * @param {number} padding Number of pixels to pad border of canvas
  * @returns {Array} Of circle info, x, y, vx, vy, r
  */
 function generateCircles() {
   const circles = [];
   const sizeLimit = WIDTH < HEIGHT ? WIDTH : HEIGHT;
 
-  const MAX_RADIUS = sizeLimit * CIRCLE_MAX_R;
-  const MIN_RADIUS = sizeLimit * CIRCLE_MIN_R;
+  const MIN_RADIUS = sizeLimit * controls.circleMinR;
+  const MAX_RADIUS = sizeLimit * controls.circleMaxR;
 
-  console.log(`canvas: ${WIDTH}, ${HEIGHT}`);
-  console.log(
-    `size limit: ${sizeLimit}, min: ${MIN_RADIUS}, max: ${MAX_RADIUS}`
-  );
-
-  for (let i = 0; i < NUM_CIRCLES; i++) {
+  for (let i = 0; i < controls.numCircles; i++) {
     const radius = random(MIN_RADIUS, MAX_RADIUS);
 
     circles.push({
-      x: random(PADDING + radius, WIDTH - PADDING - radius),
-      y: random(PADDING + radius, HEIGHT - PADDING - radius),
-      vx: random(MIN_VX, MAX_VX),
-      vy: random(MIN_VY, MAX_VY),
+      x: random(controls.padding + radius, WIDTH - controls.padding - radius),
+      y: random(controls.padding + radius, HEIGHT - controls.padding - radius),
+      vx: random(controls.minVX, controls.maxVX),
+      vy: random(controls.minVY, controls.maxVY),
       r: radius,
     });
   }
