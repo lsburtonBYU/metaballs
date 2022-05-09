@@ -2,10 +2,13 @@
  * Number of circles to generate
  * @constant {number}
  */
+
+//TODO add distribution of centers, speed
 const NUM_CIRCLES = 12;
-const CIRCLE_MAX_R = 5.5;
-const CIRCLE_MIN_R = 60;
-const V_RATIO = 1.000001;
+const CIRCLE_MAX_R = 0.17; // % of vmin
+const CIRCLE_MIN_R = 0.02; // % of vmin
+const THRESHOLD = 1.000001;
+const PADDING = 30;
 let WIDTH;
 let HEIGHT;
 
@@ -54,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
         float r = mb.z;
         v += r*r/(dx*dx + dy*dy);
       }
-      if (v > ${V_RATIO}) {
+      if (v > ${THRESHOLD}) {
           gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);
       } else {
           gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0);
@@ -90,10 +93,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // gl.viewport(0, 0, canvas.width, canvas.height);
 
   // generate circles
+
   const circles = generateCircles(
     NUM_CIRCLES,
     { max: CIRCLE_MAX_R, min: CIRCLE_MIN_R },
-    { width: WIDTH, height: HEIGHT }
+    { width: WIDTH, height: HEIGHT },
+    PADDING
   );
 
   const uniformLocation = gl.getUniformLocation(program, "circles");
@@ -108,24 +113,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const circle = circles[i];
 
       circle.x += circle.vx;
-      // outside bounds - left
-      if (circle.x - circle.r < 0) {
-        circle.x = circle.r + 1;
-        circle.vx = Math.abs(circle.vx);
-      } else if (circle.x + circle.r > WIDTH) {
-        circle.x = WIDTH - circle.r;
-        circle.vx = -Math.abs(circle.vx);
-      }
       circle.y += circle.vy;
-      if (circle.y - circle.r < 0) {
-        circle.y = circle.r + 1;
-        circle.vy = Math.abs(circle.vy);
-      } else if (circle.y + circle.r > HEIGHT) {
-        circle.y = HEIGHT - circle.r;
-        circle.vy = -Math.abs(circle.vy);
+
+      // not inside x bounds
+      if (
+        circle.x - circle.r < PADDING ||
+        circle.x + circle.r > WIDTH - PADDING
+      ) {
+        // change direction
+        circle.vx *= -1;
+      }
+
+      // not inside y bounds
+      if (
+        circle.y - circle.r < PADDING ||
+        circle.y + circle.r > HEIGHT - PADDING
+      ) {
+        // change direction
+        circle.vy *= -1;
       }
     }
-
     // convert to uniform data
     const uniformData = generateUniformData(circles);
 
@@ -299,25 +306,36 @@ function clearCanvas(gl, color) {
  * @param {number} numCircles The number of circles to generate
  * @param {Object} radiusLimits Contains min and max values to determine the
  *                              min and max radius relative to the canvas width
- * @param canvasDimension {object} width and height of canvas
+ * @param {object} canvasDimension  width and height of canvas
+ * @param {number} padding Number of pixels to pad border of canvas
  * @returns {Array} Of circle info, x, y, vx, vy, r
  */
-function generateCircles(numCircles, radiusLimits, canvasDimensions) {
+function generateCircles(
+  numCircles,
+  radiusLimits,
+  canvasDimensions,
+  padding = 10
+) {
   const circles = [];
   const sizeLimit =
     canvasDimensions.width < canvasDimensions.height
       ? canvasDimensions.width
       : canvasDimensions.height;
 
-  const MAX_RADIUS = sizeLimit / radiusLimits.max;
-  const MIN_RADIUS = sizeLimit / radiusLimits.min;
+  const MAX_RADIUS = sizeLimit * radiusLimits.max;
+  const MIN_RADIUS = sizeLimit * radiusLimits.min;
+
+  console.log(`canvas: ${canvasDimensions.width}, ${canvasDimensions.height}`);
+  console.log(
+    `size limit: ${sizeLimit}, min: ${MIN_RADIUS}, max: ${MAX_RADIUS}`
+  );
 
   for (let i = 0; i < numCircles; i++) {
-    const radius = Math.random() * (MAX_RADIUS - MIN_RADIUS) + MIN_RADIUS;
+    const radius = random(MIN_RADIUS, MAX_RADIUS);
 
     circles.push({
-      x: Math.random() * (canvasDimensions.width - 2 * radius) + radius,
-      y: Math.random() * (canvasDimensions.height - 2 * radius) + radius,
+      x: random(padding + radius, canvasDimensions.width - padding - radius),
+      y: random(padding + radius, canvasDimensions.height - padding - radius),
       vx: (Math.random() * MIN_RADIUS) / 2,
       vy: (Math.random() * MIN_RADIUS) / 2,
       r: radius,
@@ -327,6 +345,9 @@ function generateCircles(numCircles, radiusLimits, canvasDimensions) {
   return circles;
 }
 
+function random(min, max) {
+  return Math.random() * (max - min) + min;
+}
 /**
  * given generated circles, returns array of data for uniform
  * @param {Array} circles The circle data
