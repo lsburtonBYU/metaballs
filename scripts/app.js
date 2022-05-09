@@ -3,12 +3,16 @@
  * @constant {number}
  */
 
-//TODO add distribution of centers, speed
-const NUM_CIRCLES = 12;
+//TODO add distribution of centers, gui
+const NUM_CIRCLES = 10;
 const CIRCLE_MAX_R = 0.17; // % of vmin
 const CIRCLE_MIN_R = 0.02; // % of vmin
 const THRESHOLD = 1.000001;
 const PADDING = 30;
+const MIN_VX = 1;
+const MIN_VY = 3;
+const MAX_VX = 6;
+const MAX_VY = 6;
 let WIDTH;
 let HEIGHT;
 
@@ -90,10 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   gl.useProgram(program);
 
-  // gl.viewport(0, 0, canvas.width, canvas.height);
-
   // generate circles
-
   const circles = generateCircles(
     NUM_CIRCLES,
     { max: CIRCLE_MAX_R, min: CIRCLE_MIN_R },
@@ -303,41 +304,33 @@ function clearCanvas(gl, color) {
  * the smaller dimension of canvas width and height, the the max
  * radius equals 1/radiusLimits.max * sizeLimit and the min radius is
  * 1/radiusLimits.min * sizeLimit
- * @param {number} numCircles The number of circles to generate
+ * @param {number} NUM_CIRCLES The number of circles to generate
  * @param {Object} radiusLimits Contains min and max values to determine the
  *                              min and max radius relative to the canvas width
  * @param {object} canvasDimension  width and height of canvas
  * @param {number} padding Number of pixels to pad border of canvas
  * @returns {Array} Of circle info, x, y, vx, vy, r
  */
-function generateCircles(
-  numCircles,
-  radiusLimits,
-  canvasDimensions,
-  padding = 10
-) {
+function generateCircles() {
   const circles = [];
-  const sizeLimit =
-    canvasDimensions.width < canvasDimensions.height
-      ? canvasDimensions.width
-      : canvasDimensions.height;
+  const sizeLimit = WIDTH < HEIGHT ? WIDTH : HEIGHT;
 
-  const MAX_RADIUS = sizeLimit * radiusLimits.max;
-  const MIN_RADIUS = sizeLimit * radiusLimits.min;
+  const MAX_RADIUS = sizeLimit * CIRCLE_MAX_R;
+  const MIN_RADIUS = sizeLimit * CIRCLE_MIN_R;
 
-  console.log(`canvas: ${canvasDimensions.width}, ${canvasDimensions.height}`);
+  console.log(`canvas: ${WIDTH}, ${HEIGHT}`);
   console.log(
     `size limit: ${sizeLimit}, min: ${MIN_RADIUS}, max: ${MAX_RADIUS}`
   );
 
-  for (let i = 0; i < numCircles; i++) {
+  for (let i = 0; i < NUM_CIRCLES; i++) {
     const radius = random(MIN_RADIUS, MAX_RADIUS);
 
     circles.push({
-      x: random(padding + radius, canvasDimensions.width - padding - radius),
-      y: random(padding + radius, canvasDimensions.height - padding - radius),
-      vx: (Math.random() * MIN_RADIUS) / 2,
-      vy: (Math.random() * MIN_RADIUS) / 2,
+      x: random(PADDING + radius, WIDTH - PADDING - radius),
+      y: random(PADDING + radius, HEIGHT - PADDING - radius),
+      vx: random(MIN_VX, MAX_VX),
+      vy: random(MIN_VY, MAX_VY),
       r: radius,
     });
   }
