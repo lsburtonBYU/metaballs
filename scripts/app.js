@@ -3,9 +3,16 @@ let HEIGHT;
 const controls = {};
 let refresh = false;
 
+//TODO - padding not working
+//TODO random directions +/-
 //TODO add to current state on refresh instead of generating new circles
 //TODO add toggle for metaballs vs circles
 //TODO organize controls and limit max mins
+//TODO add refresh button
+//TODO resize canvas
+//TODO responsive
+//TODO metaball colors
+//TODO metaball centers distribution
 function initInput(name, defaultValue) {
   controls[name] = defaultValue;
   let element = document.querySelector(`#${name}`);
