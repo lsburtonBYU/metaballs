@@ -3,29 +3,38 @@ let HEIGHT;
 const controls = {};
 let refresh = false;
 
-//TODO - padding not working
-//TODO add to current state on refresh instead of generating new circles
-//TODO add toggle for metaballs vs circles
-//TODO organize controls and limit max mins
-//TODO add refresh button
-//TODO resize canvas
-//TODO responsive
-//TODO metaball colors
-//TODO metaball centers distribution
+//TODO: - padding not working
+//TODO: fix flex on Chrome (css not override height width attributes?)
+//TODO: add to current state on refresh instead of generating new circles
+//TODO: organize controls and limit max mins
+//TODO: add refresh button
+//TODO: resize canvas
+//TODO: responsive
+//TODO: metaball colors
+//TODO: metaball centers distribution
 function initInput(name, defaultValue) {
-  controls[name] = defaultValue;
   let element = document.querySelector(`#${name}`);
   if (element) {
-    element.value = controls[name];
-    element.nextElementSibling.textContent = controls[name];
-
-    element.addEventListener("input", (event) => {
-      event.target.nextElementSibling.textContent = event.target.value;
-    });
+    if (name !== "metaballsOn") {
+      controls[name] = defaultValue;
+      element.value = defaultValue;
+      element.nextElementSibling.textContent = controls[name];
+      element.addEventListener("input", (event) => {
+        event.target.nextElementSibling.textContent = event.target.value;
+      });
+    } else {
+      controls[name] = +defaultValue;
+    }
 
     element.addEventListener("change", (event) => {
-      // console.log(`changed value of ${name} to ${event.target.value}`);
-      controls[name] = event.target.value;
+      // console.log(event.target.type);
+      if (event.target.type === "checkbox") {
+        controls[name] = +event.target.checked;
+        // console.log(`changed value of ${name} to ${controls[name]}`);
+      } else {
+        controls[name] = event.target.value;
+        //console.log(`changed value of ${name} to ${event.target.value}`);
+      }
       refresh = true;
     });
   }
@@ -42,7 +51,7 @@ function linkControls() {
     { name: "maxVX", value: 6 },
     { name: "minVY", value: 1 },
     { name: "maxVY", value: 6 },
-    { name: "metaballsOn", value: true },
+    { name: "metaballsOn", value: false },
   ];
 
   defaults.forEach((element) => {
@@ -85,6 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     precision highp float;  
     uniform int numCircles; 
     uniform float threshold;
+    uniform int metaballsOn;
 
     const int maxCircles = 60;
 
@@ -95,21 +105,40 @@ document.addEventListener("DOMContentLoaded", () => {
     {
       float x = gl_FragCoord.x;
       float y = gl_FragCoord.y;
-      float v = 0.0;
 
-      for (int i = 0; i < maxCircles; i++) {
-        vec3 circle = circles[i];
-        float dx = circle.x - x;
-        float dy = circle.y - y;
-        float r = circle.z;
-        v += r*r/(dx*dx + dy*dy);
+      if (metaballsOn == 0) {
+        float v = 0.0;
+        for (int i = 0; i < maxCircles; i++) {
+          vec3 circle = circles[i];
+          float dx = circle.x - x;
+          float dy = circle.y - y;
+          float r = circle.z;
+          v += r*r/(dx*dx + dy*dy);
 
-        if (i == numCircles-1) break;
-      }
-      if (v > threshold) {
-          gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);
+          if (i == numCircles-1) break;
+        }
+        if (v > threshold) {
+            gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);
+        } else {
+            gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0);
+        }
       } else {
-          gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0);
+        for (int i = 0; i < maxCircles; i++) {
+          vec3 circle = circles[i];
+          float r = circle.z;
+  
+          // check bounding box, then check if inside circle; rely on 
+          // short circuiting to reduce calculations for points outside circle
+          if (x > circle.x - r && x < circle.x + r 
+              && y > circle.y - r && y < circle.y + r
+              && (circle.x - x)*(circle.x - x) + (circle.y - y)*(circle.y - y) < r*r ) {
+            gl_FragColor = vec4(x/${WIDTH}.0, y/${HEIGHT}.0, 0.5, 1.0);   
+            return;
+          }
+          if (i == numCircles-1) break;
+        }
+        // background color
+        gl_FragColor = vec4(0.9, 0.9, 0.9, 1.0); 
       }
     }`;
 
@@ -151,6 +180,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const thresholdHandle = gl.getUniformLocation(program, "threshold");
   gl.uniform1f(thresholdHandle, controls.threshold);
 
+  // uniform int metaballsOn
+  const metaballsOnHandle = gl.getUniformLocation(program, "metaballsOn");
+  gl.uniform1i(metaballsOnHandle, controls.metaballsOn);
   /**
    * Simulation step, data transfer, and drawing
    */
@@ -161,6 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // if (reCompile) {
       gl.uniform1i(numCirclesHandle, controls.numCircles);
       gl.uniform1f(thresholdHandle, controls.threshold);
+      gl.uniform1i(metaballsOnHandle, controls.metaballsOn);
       //   reCompile = false;
       // }
       circles = generateCircles();
