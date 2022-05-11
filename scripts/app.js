@@ -4,7 +4,6 @@ const controls = {};
 let refresh = false;
 
 //TODO - padding not working
-//TODO random directions +/-
 //TODO add to current state on refresh instead of generating new circles
 //TODO add toggle for metaballs vs circles
 //TODO organize controls and limit max mins
@@ -28,9 +27,6 @@ function initInput(name, defaultValue) {
       // console.log(`changed value of ${name} to ${event.target.value}`);
       controls[name] = event.target.value;
       refresh = true;
-      // if (name === "numCircles" || name === "threshold") {
-      //   reCompile = true;
-      // }
     });
   }
 }
@@ -46,6 +42,7 @@ function linkControls() {
     { name: "maxVX", value: 6 },
     { name: "minVY", value: 1 },
     { name: "maxVY", value: 6 },
+    { name: "metaballsOn", value: true },
   ];
 
   defaults.forEach((element) => {
@@ -169,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
       circles = generateCircles();
     } else {
       // Update positions and speeds
+      const padding = parseInt(controls.padding);
       for (let i = 0; i < circles.length; i++) {
         const circle = circles[i];
 
@@ -177,8 +175,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // not inside x bounds
         if (
-          circle.x - circle.r < controls.padding ||
-          circle.x + circle.r > WIDTH - controls.padding
+          circle.x - circle.r < padding ||
+          circle.x + circle.r > WIDTH - padding
         ) {
           // change direction
           circle.vx *= -1;
@@ -186,8 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // not inside y bounds
         if (
-          circle.y - circle.r < controls.padding ||
-          circle.y + circle.r > HEIGHT - controls.padding
+          circle.y - circle.r < padding ||
+          circle.y + circle.r > HEIGHT - padding
         ) {
           // change direction
           circle.vy *= -1;
@@ -376,12 +374,16 @@ function generateCircles() {
 
   for (let i = 0; i < controls.numCircles; i++) {
     const radius = random(MIN_RADIUS, MAX_RADIUS);
-
+    const padding = parseInt(controls.padding);
     circles.push({
-      x: random(controls.padding + radius, WIDTH - controls.padding - radius),
-      y: random(controls.padding + radius, HEIGHT - controls.padding - radius),
-      vx: random(controls.minVX, controls.maxVX),
-      vy: random(controls.minVY, controls.maxVY),
+      x: random(padding + radius, WIDTH - padding - radius),
+      y: random(padding + radius, HEIGHT - padding - radius),
+      vx:
+        (Math.round(random()) ? 1 : -1) *
+        random(controls.minVX, controls.maxVX),
+      vy:
+        (Math.round(random()) ? 1 : -1) *
+        random(controls.minVY, controls.maxVY),
       r: radius,
     });
   }

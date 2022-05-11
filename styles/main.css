@@ -12,6 +12,7 @@ main {
   display: grid;
   grid-template-columns: 1fr 2rem;
   grid-auto-rows: min-content;
+  justify-content: start;
 
   column-gap: 1rem;
 
@@ -20,6 +21,10 @@ main {
 
 label {
   grid-column-end: span 2;
+}
+
+input[type="checkbox"] {
+  justify-self: start;
 }
 
 @media (min-width: 600px) {
