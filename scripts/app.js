@@ -16,7 +16,7 @@ let refresh = false;
 function initInput(name, defaultValue) {
   let element = document.querySelector(`#${name}`);
   if (element) {
-    if (name !== "metaballsOn") {
+    if (name !== "metaballsOn" && name !== "applyAll") {
       controls[name] = defaultValue;
       element.value = defaultValue;
       element.nextElementSibling.textContent = controls[name];
@@ -52,7 +52,8 @@ function linkControls() {
     {name: "maxVX", value: 6},
     {name: "minVY", value: 1},
     {name: "maxVY", value: 6},
-    {name: "metaballsOn", value: false},
+    {name: "applyAll", value: false},
+    {name: "metaballsOn", value: true},
   ];
 
   defaults.forEach((element) => {
@@ -111,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
       float x = gl_FragCoord.x;
       float y = gl_FragCoord.y;
 
-      if (metaballsOn == 0) {
+      if (metaballsOn != 0) {
         float v = 0.0;
         for (int i = 0; i < maxCircles; i++) {
           vec3 circle = circles[i];

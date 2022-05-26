@@ -7,6 +7,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="a page that uses WebGL to draw random circles on a canvas">
   <title>WebGL stuff</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/main.css">
   <style>
 
@@ -53,9 +56,17 @@
       <label for="maxVY">Max vy (pixels)</label>
       <input id="maxVY" type="range" min="0" max="20">
       <div class="input-value"></div>
+      <div class="switch new">
+        <span>Apply to:</span>
+        <input id="applyAll" type="checkbox">
+        <label for="applyAll">All</label>
+      </div>
+      <div class="switch circles">
+        <span>Display as:</span>
+        <input id="metaballsOn" type="checkbox" checked>
+        <label for="metaballsOn">Metaballs</label>
+      </div>
 
-      <label for="metaballsOn">Disable metaballs</label>
-      <input type="checkbox" id="metaballsOn">
     </form>
   </main>
 
