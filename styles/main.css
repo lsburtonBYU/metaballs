@@ -55,23 +55,24 @@ main {
   row-gap: 0.5rem;
 
   background-color: var(--c800);
-  font-size: 14px;
   padding: 1rem;
 }
 
 label {
   grid-column-end: span 2;
+  user-select: none;
 }
 
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  background: transparent;
+  background-color: transparent;
   cursor: pointer;
 }
 
+/* webkit and moz specific styling */
 input[type="range"]::-webkit-slider-runnable-track {
-  background: var(--c500);
+  background-color: var(--c500);
   border-radius: 6px;
   height: 0.5rem;
 }
@@ -85,7 +86,7 @@ input[type="range"]::-moz-range-track {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  margin-top: -4px; /* Centers thumb on the track */
+  margin-top: -4px;
   background-color: var(--c200);
   height: 1rem;
   width: 1rem;
@@ -100,17 +101,82 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
 }
 
-input[type="range"]:focus {
-  outline: none;
-}
-
 input[type="range"]:focus::-webkit-slider-thumb {
   outline: 2px solid var(--bg-color);
+  background: var(--highlight);
+}
+
+input[type="range"]:focus::-moz-range-thumb {
+  outline: none;
+  background: var(--highlight);
 }
 
 input[type="range"]::-moz-range-progress {
-  background-color: red;
   background: var(--highlight);
+}
+
+.two-thumb {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 2.5rem;
+  grid-column-end: span 2;
+}
+
+.two-thumb label {
+  grid-column: 1 / span 3;
+}
+
+.two-thumb label.min {
+  grid-row: 1 / span 1;
+}
+
+.two-thumb label.max {
+  grid-row: 4 / span 1;
+  visibility: hidden;
+  font-size: 0.001px;
+}
+
+.two-thumb input {
+  grid-row: 2 / span 1;
+  grid-column: 2 / span 1;
+  pointer-events: none;
+  margin-right: 9px;
+}
+
+.two-thumb input.max {
+  grid-row: 2 / span 1;
+  grid-column: 2 / span 1;
+}
+
+.two-thumb .input-value {
+  grid-row: 2 / span 1;
+}
+
+.two-thumb .input-value.min {
+  grid-column: 1 / span 1;
+}
+
+.two-thumb .input-value.max {
+  grid-column: 3 / span 1;
+}
+
+.two-thumb input.max::-webkit-slider-runnable-track {
+  background: none;
+}
+
+.two-thumb input.max::-moz-range-track {
+  background: none;
+}
+
+.two-thumb input::-moz-range-progress {
+  background: none;
+}
+
+.two-thumb input::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+.two-thumb input::-moz-range-thumb {
+  pointer-events: auto;
 }
 
 .switch {
@@ -208,6 +274,8 @@ input[type="range"]::-moz-range-progress {
 
   .controls {
     flex: 0 1 30%;
+    min-width: 290px;
     max-width: 360px;
+    min-height: 80vh;
   }
 }

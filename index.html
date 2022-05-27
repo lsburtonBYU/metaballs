@@ -5,8 +5,9 @@
   <meta charset="UTF-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="a page that uses WebGL to draw random circles on a canvas">
-  <title>WebGL stuff</title>
+  <meta name="description" content="a page that uses WebGL to draw metaballs">
+  <title>WebGL Metaballs</title>
+  <link rel="stylesheet" href="styles/normalize.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;700&display=swap" rel="stylesheet">
@@ -17,7 +18,7 @@
 </head>
 
 <body>
-  <h1>WebGL stuff</h1>
+  <h1>WebGL Metaballs</h1>
   <main>
     <canvas id="mainCanvas"></canvas>
     <form class="controls">
@@ -25,37 +26,38 @@
       <input id="numCircles" type="range" min="1" max="80">
       <div class="input-value"></div>
 
-      <label for="circleMinR">Circle min radius %</label>
-      <input id="circleMinR" type="range" min="0.01" max="1.0" step="0.01">
-      <div class="input-value"></div>
+      <div class="two-thumb">
+        <label for="circleMinR" class="min">Circle min/max radius %</label>
+        <input id="circleMinR" class="min" type="range" min="0.01" max="0.5" step="0.01">
+        <div class="input-value min" id="circleMinRValue"></div>
 
-      <label for="circleMaxR">Circle max radius %</label>
-      <input id="circleMaxR" type="range" min="0.01" max="1.0" step="0.01">
-      <div class="input-value"></div>
+        <label for="circleMaxR" class="max">Circle max radius %</label>
+        <input id="circleMaxR" class="max" type="range" min="0.01" max="0.5" step="0.01">
+        <div class="input-value max" id="circleMaxRValue"></div>
+      </div>
 
       <label for="threshold">Threshold</label>
       <input id="threshold" type="range" min="0" max="6" step="0.01">
       <div class="input-value"></div>
 
-      <!-- <label for="padding">Padding (pixels)</label>
-      <input id="padding" type="range" min="0" max="100">
-      <div class="input-value"></div> -->
+      <div class="two-thumb">
+        <label for="minVX" class="min">Min/max vx step (pixels)</label>
+        <input id="minVX" class="min" type="range" min="1" max="20">
+        <div class="input-value min"></div>
 
-      <label for="minVX">Min vx (pixels)</label>
-      <input id="minVX" type="range" min="0" max="20">
-      <div class="input-value"></div>
+        <label for="maxVX" class="max">Max vx (pixels)</label>
+        <input id="maxVX" class="max" type="range" min="1" max="20">
+        <div class="input-value max"></div>
+      </div>
+      <div class="two-thumb">
+        <label for="minVY" class="min">Min vy (pixels)</label>
+        <input id="minVY" class="min" type="range" min="1" max="20">
+        <div class="input-value min"></div>
 
-      <label for="maxVX">Max vx (pixels)</label>
-      <input id="maxVX" type="range" min="0" max="20">
-      <div class="input-value"></div>
-
-      <label for="minVY">Min vy (pixels)</label>
-      <input id="minVY" type="range" min="0" max="20">
-      <div class="input-value"></div>
-
-      <label for="maxVY">Max vy (pixels)</label>
-      <input id="maxVY" type="range" min="0" max="20">
-      <div class="input-value"></div>
+        <label for="maxVY" class="max">Max vy (pixels)</label>
+        <input id="maxVY" class="max" type="range" min="1" max="20">
+        <div class="input-value max"></div>
+      </div>
       <div class="switch new">
         <span>Apply to:</span>
         <input id="applyAll" type="checkbox">

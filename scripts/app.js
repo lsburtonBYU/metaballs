@@ -5,59 +5,89 @@ let refresh = false;
 
 //TODO: adjust circles when controls change - add adjust new or adjust all option
 //TODO: check that random -/+ vx vy is working
-//TODO: - padding not working
-//TODO: fix flex on Chrome (css not override height width attributes?)
-//TODO: organize controls and limit max mins
 //TODO: add refresh button
 //TODO: resize canvas
-//TODO: responsive
-//TODO: metaball colors
 //TODO: metaball centers distribution
-function initInput(name, defaultValue) {
+function initInput(name, defaultValue, twoThumb = false) {
   let element = document.querySelector(`#${name}`);
   if (element) {
     if (name !== "metaballsOn" && name !== "applyAll") {
       controls[name] = defaultValue;
       element.value = defaultValue;
       element.nextElementSibling.textContent = controls[name];
-      element.addEventListener("input", (event) => {
-        event.target.nextElementSibling.textContent = event.target.value;
+      if (twoThumb) {
+        element.addEventListener("input", (event) => {
+          event.target.nextElementSibling.textContent = event.target.value;
+
+          let element1;
+          let element2;
+          if (name.startsWith("c")) {
+            element1 = document.querySelector("#circleMinR");
+            element2 = document.querySelector("#circleMaxR");
+          } else if (name.endsWith("X")) {
+            element1 = document.querySelector("#minVX");
+            element2 = document.querySelector("#maxVX");
+          } else if (name.endsWith("Y")) {
+            element1 = document.querySelector("#minVY");
+            element2 = document.querySelector("#maxVY");
+          }
+          const min = parseFloat(element1.value);
+          const max = parseFloat(element2.value);
+
+          if (min > max) {
+            element1.nextElementSibling.textContent = max;
+            element2.nextElementSibling.textContent = min;
+          }
+        });
+      } else {
+        // not two thumb slider
+        element.addEventListener("input", (event) => {
+          event.target.nextElementSibling.textContent = event.target.value;
+        });
+      }
+      element.addEventListener("change", (event) => {
+        // console.log(event.target.type);
+        if (event.target.type === "checkbox") {
+          controls[name] = +event.target.checked;
+          // console.log(`changed value of ${name} to ${controls[name]}`);
+        } else {
+          controls[name] = event.target.value;
+          //console.log(`changed value of ${name} to ${event.target.value}`);
+        }
+        refresh = true;
       });
     } else {
+      // this is a switch - metaballs on and applyAll
+      console.log(`set element ${element.name} value to ${defaultValue} or ${+defaultValue}`);
       controls[name] = +defaultValue;
-    }
+      element.checked = defaultValue;
 
-    element.addEventListener("change", (event) => {
-      // console.log(event.target.type);
-      if (event.target.type === "checkbox") {
-        controls[name] = +event.target.checked;
-        // console.log(`changed value of ${name} to ${controls[name]}`);
-      } else {
-        controls[name] = event.target.value;
-        //console.log(`changed value of ${name} to ${event.target.value}`);
-      }
-      refresh = true;
-    });
+      element.addEventListener("change", (event) => {
+        console.log(`${event.target.id} checked() is ${event.target.checked}`);
+        controls[name] = event.target.checked;
+        if (name.startsWith("m")) refresh = true;
+      });
+    }
   }
 }
 
 function linkControls() {
   const defaults = [
-    {name: "numCircles", value: 10},
-    {name: "circleMinR", value: 0.02},
-    {name: "circleMaxR", value: 0.17},
-    {name: "threshold", value: 1.0},
-    {name: "padding", value: 30},
-    {name: "minVX", value: 1},
-    {name: "maxVX", value: 6},
-    {name: "minVY", value: 1},
-    {name: "maxVY", value: 6},
-    {name: "applyAll", value: false},
-    {name: "metaballsOn", value: true},
+    {name: "numCircles", value: 10, twoThumb: false},
+    {name: "circleMinR", value: 0.02, twoThumb: true},
+    {name: "circleMaxR", value: 0.17, twoThumb: true},
+    {name: "threshold", value: 1.0, twoThumb: false},
+    {name: "padding", value: 30, twoThumb: false},
+    {name: "minVX", value: 1, twoThumb: true},
+    {name: "maxVX", value: 6, twoThumb: true},
+    {name: "minVY", value: 1, twoThumb: true},
+    {name: "maxVY", value: 6, twoThumb: true},
+    {name: "applyAll", value: false, twoThumb: false},
+    {name: "metaballsOn", value: true, twoThumb: false},
   ];
 
   defaults.forEach((element) => {
-    initInput(element.name, element.value);
+    initInput(element.name, element.value, element.twoThumb);
   });
 
   controls.padding = 30;
@@ -189,19 +219,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // uniform int metaballsOn
   const metaballsOnHandle = gl.getUniformLocation(program, "metaballsOn");
   gl.uniform1i(metaballsOnHandle, controls.metaballsOn);
+
   /**
    * Simulation step, data transfer, and drawing
    */
-
   const step = function () {
     if (refresh) {
       refresh = false;
-      // if (reCompile) {
       gl.uniform1i(numCirclesHandle, controls.numCircles);
       gl.uniform1f(thresholdHandle, controls.threshold);
       gl.uniform1i(metaballsOnHandle, controls.metaballsOn);
-      //   reCompile = false;
-      // }
+
+      console.log(`controls.applyAll = ${controls.applyAll}`);
+
       circles = generateCircles(circles);
     } else {
       // Update positions and speeds
@@ -404,7 +434,9 @@ function generateCircles(circles = null) {
 
   console.log(`controls ${controls.numCircles}: add ${circlesToAdd} circles to array of ${circles.length}`);
   console.log(`adjust ${circlesToAdjust}`);
-
+  if (controls.applyAll) {
+    console.log("apply to all - update circles");
+  }
   const sizeLimit = WIDTH < HEIGHT ? WIDTH : HEIGHT;
 
   const MIN_RADIUS = sizeLimit * controls.circleMinR;
@@ -425,6 +457,12 @@ function generateCircles(circles = null) {
   return circles;
 }
 
+/**
+ * Return a random number between min and max values (including min and max)
+ * @param {number} min
+ * @param {number} max
+ * @returns number
+ */
 function random(min, max) {
   let minF = parseFloat(min);
   let maxF = parseFloat(max);
@@ -435,6 +473,7 @@ function random(min, max) {
   }
   return Math.random() * (maxF - minF) + minF;
 }
+
 /**
  * given generated circles, returns array of data for uniform
  * @param {Array} circles The circle data
