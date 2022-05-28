@@ -1,27 +1,28 @@
 let WIDTH;
 let HEIGHT;
+const InputType = { RANGE: 0, TWO_THUMB: 1, SWITCH: 2 };
 const controls = {};
 let refresh = false;
+let controlUpdated = "";
 
-//TODO: adjust circles when controls change - add adjust new or adjust all option
-//TODO: check that random -/+ vx vy is working
 //TODO: add refresh button
 //TODO: resize canvas
-//TODO: metaball centers distribution
-function initInput(name, defaultValue, twoThumb = false) {
+function initInput(name, defaultValue, type) {
   let element = document.querySelector(`#${name}`);
   if (element) {
-    if (name !== "metaballsOn" && name !== "applyAll") {
+    if (type !== InputType.SWITCH) {
+      // not a switch
       controls[name] = defaultValue;
       element.value = defaultValue;
       element.nextElementSibling.textContent = controls[name];
-      if (twoThumb) {
+      if (type === InputType.TWO_THUMB) {
+        // two thumb
         element.addEventListener("input", (event) => {
           event.target.nextElementSibling.textContent = event.target.value;
 
           let element1;
           let element2;
-          if (name.startsWith("c")) {
+          if (name.endsWith("R")) {
             element1 = document.querySelector("#circleMinR");
             element2 = document.querySelector("#circleMaxR");
           } else if (name.endsWith("X")) {
@@ -40,31 +41,27 @@ function initInput(name, defaultValue, twoThumb = false) {
           }
         });
       } else {
-        // not two thumb slider
+        // not two thumb
         element.addEventListener("input", (event) => {
           event.target.nextElementSibling.textContent = event.target.value;
         });
       }
       element.addEventListener("change", (event) => {
-        // console.log(event.target.type);
-        if (event.target.type === "checkbox") {
-          controls[name] = +event.target.checked;
-          // console.log(`changed value of ${name} to ${controls[name]}`);
-        } else {
-          controls[name] = event.target.value;
-          //console.log(`changed value of ${name} to ${event.target.value}`);
-        }
+        // refresh everything but switch
+        controls[name] = event.target.value;
+        //console.log(`changed value of ${name} to ${event.target.value}`);
         refresh = true;
+        controlUpdated = name;
       });
     } else {
-      // this is a switch - metaballs on and applyAll
-      console.log(`set element ${element.name} value to ${defaultValue} or ${+defaultValue}`);
+      // is a switch
       controls[name] = +defaultValue;
       element.checked = defaultValue;
 
       element.addEventListener("change", (event) => {
         console.log(`${event.target.id} checked() is ${event.target.checked}`);
         controls[name] = event.target.checked;
+        controlUpdated = name;
         if (name.startsWith("m")) refresh = true;
       });
     }
@@ -73,24 +70,23 @@ function initInput(name, defaultValue, twoThumb = false) {
 
 function linkControls() {
   const defaults = [
-    {name: "numCircles", value: 10, twoThumb: false},
-    {name: "circleMinR", value: 0.02, twoThumb: true},
-    {name: "circleMaxR", value: 0.17, twoThumb: true},
-    {name: "threshold", value: 1.0, twoThumb: false},
-    {name: "padding", value: 30, twoThumb: false},
-    {name: "minVX", value: 1, twoThumb: true},
-    {name: "maxVX", value: 6, twoThumb: true},
-    {name: "minVY", value: 1, twoThumb: true},
-    {name: "maxVY", value: 6, twoThumb: true},
-    {name: "applyAll", value: false, twoThumb: false},
-    {name: "metaballsOn", value: true, twoThumb: false},
+    { name: "numCircles", value: 10, type: InputType.RANGE },
+    { name: "circleMinR", value: 0.02, type: InputType.TWO_THUMB },
+    { name: "circleMaxR", value: 0.17, type: InputType.TWO_THUMB },
+    { name: "threshold", value: 1.0, type: InputType.RANGE },
+    { name: "minVX", value: 1, type: InputType.TWO_THUMB },
+    { name: "maxVX", value: 6, type: InputType.TWO_THUMB },
+    { name: "minVY", value: 1, type: InputType.TWO_THUMB },
+    { name: "maxVY", value: 6, type: InputType.TWO_THUMB },
+    { name: "applyAll", value: false, type: InputType.SWITCH },
+    { name: "metaballsOn", value: true, type: InputType.SWITCH },
   ];
 
   defaults.forEach((element) => {
-    initInput(element.name, element.value, element.twoThumb);
+    initInput(element.name, element.value, element.type);
   });
 
-  controls.padding = 30;
+  controls.padding = 10;
 }
 
 /** Render canvas when the DOM is loaded and parsed */
@@ -206,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // uniform circles[float]
   let circles = generateCircles();
+
   const uniformLocation = gl.getUniformLocation(program, "circles");
 
   // uniform int numCircles
@@ -230,30 +227,32 @@ document.addEventListener("DOMContentLoaded", () => {
       gl.uniform1f(thresholdHandle, controls.threshold);
       gl.uniform1i(metaballsOnHandle, controls.metaballsOn);
 
-      console.log(`controls.applyAll = ${controls.applyAll}`);
-
       circles = generateCircles(circles);
     } else {
       // Update positions and speeds
       const padding = parseInt(controls.padding);
-      for (let i = 0; i < circles.length; i++) {
-        const circle = circles[i];
-
+      circles.forEach((circle) => {
         circle.x += circle.vx;
         circle.y += circle.vy;
 
         // not inside x bounds
-        if (circle.x - circle.r < padding || circle.x + circle.r > WIDTH - padding) {
+        if (
+          circle.x - circle.r < padding ||
+          circle.x + circle.r > WIDTH - padding
+        ) {
           // change direction
           circle.vx *= -1;
         }
 
         // not inside y bounds
-        if (circle.y - circle.r < padding || circle.y + circle.r > HEIGHT - padding) {
+        if (
+          circle.y - circle.r < padding ||
+          circle.y + circle.r > HEIGHT - padding
+        ) {
           // change direction
           circle.vy *= -1;
         }
-      }
+      });
     }
 
     // convert to uniform data
@@ -283,9 +282,9 @@ function makeShader(gl, shaderSource, shaderType) {
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     throw new Error(
-      `ERROR compiling ${shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"} shader: ${gl.getShaderInfoLog(
-        shader
-      )}`
+      `ERROR compiling ${
+        shaderType === gl.VERTEX_SHADER ? "vertex" : "fragment"
+      } shader: ${gl.getShaderInfoLog(shader)}`
     );
   }
   return shader;
@@ -315,7 +314,9 @@ function makeProgram(gl, vertexShader, fragmentShader, validate = false) {
   if (validate) {
     gl.validateProgram(program);
     if (!gl.getProgramParameter(program, gl.VALIDATE_STATUS)) {
-      throw new Error("ERROR validating program: " + gl.getProgramInfoLog(program));
+      throw new Error(
+        "ERROR validating program: " + gl.getProgramInfoLog(program)
+      );
     }
   }
 
@@ -379,7 +380,14 @@ function createAttribute(
  * @param {number} type Buffer type from a GLenum; default is gl.ARRAY_BUFFER
  * @param {number} bufferDataType Buffer data type from a GLenum; default is gl.STATIC_DRAW
  */
-function createBuffer(gl, program, bufferData, attributes, type = gl.ARRAY_BUFFER, bufferDataType = gl.STATIC_DRAW) {
+function createBuffer(
+  gl,
+  program,
+  bufferData,
+  attributes,
+  type = gl.ARRAY_BUFFER,
+  bufferDataType = gl.STATIC_DRAW
+) {
   const buffer = gl.createBuffer();
   gl.bindBuffer(type, buffer);
   gl.bufferData(type, bufferData, bufferDataType);
@@ -390,19 +398,16 @@ function createBuffer(gl, program, bufferData, attributes, type = gl.ARRAY_BUFFE
       throw "Can not find attribute " + attr.name + "#";
     }
 
-    gl.vertexAttribPointer(attrLocation, attr.size, attr.type, attr.normalized, attr.stride, attr.offset);
+    gl.vertexAttribPointer(
+      attrLocation,
+      attr.size,
+      attr.type,
+      attr.normalized,
+      attr.stride,
+      attr.offset
+    );
     gl.enableVertexAttribArray(attrLocation);
   });
-}
-
-/**
- * Clear the canvas with the given color
- * @param {WebGLRenderingContext} gl The current WebGL rendering context
- * @param {ColorObject} color Contains floats for r, g, b, and a
- */
-function clearCanvas(gl, color) {
-  gl.clearColor(color.r, color.g, color.b, color.a);
-  gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
 /**
@@ -413,12 +418,15 @@ function clearCanvas(gl, color) {
  * @returns {Array} Of circle info, x, y, vx, vy, r
  */
 function generateCircles(circles = null) {
-  // double equality to check for undefined
   let circlesToAdd = 0;
   let circlesToAdjust = 0;
+  const padding = parseInt(controls.padding);
+
+  // double equality to check for undefined
   if (circles == null) {
     circles = [];
   }
+  // check if circles need to be removed
   if (circles.length > controls.numCircles) {
     // remove circles
     let numRemove = circles.length - controls.numCircles;
@@ -432,24 +440,103 @@ function generateCircles(circles = null) {
     circlesToAdd = controls.numCircles - circles.length;
   }
 
-  console.log(`controls ${controls.numCircles}: add ${circlesToAdd} circles to array of ${circles.length}`);
-  console.log(`adjust ${circlesToAdjust}`);
-  if (controls.applyAll) {
-    console.log("apply to all - update circles");
-  }
   const sizeLimit = WIDTH < HEIGHT ? WIDTH : HEIGHT;
 
   const MIN_RADIUS = sizeLimit * controls.circleMinR;
   const MAX_RADIUS = sizeLimit * controls.circleMaxR;
 
+  console.log(
+    `controls ${controls.numCircles}: add ${circlesToAdd} circles to array of ${circles.length}`
+  );
+
+  // if apply all option is set, update current circles
+  if (controls.applyAll) {
+    console.log(`apply to all - update circles by ${controlUpdated}`);
+    circles.forEach((circle) => {
+      if (controlUpdated.endsWith("X")) {
+        console.log("adjust VX");
+        circle.vx =
+          (Math.round(random(0, 1)) === 1 ? 1 : -1) *
+          random(controls.minVX, controls.maxVX);
+        //check that circle won't be outside canvas
+        // if (
+        //   circle.x + circle.r + circle.vx > WIDTH - padding ||
+        //   circle.x - circle.r + circle.vx < padding
+        // ) {
+        //   circle.vx *= -1;
+        //   console.log(
+        //     `vx adjusted to ${circle.vx.toFixed(2)} for x: ${circle.x.toFixed(
+        //       2
+        //     )} with radius ${circle.r.toFixed(2)} and width: ${WIDTH}`
+        //   );
+        // }
+      } else if (controlUpdated.endsWith("Y")) {
+        console.log("adjust VY");
+        circle.vy =
+          (Math.round(random(0, 1)) === 1 ? 1 : -1) *
+          random(controls.minVX, controls.maxVX);
+        //check that circle won't be outside canvas
+        // if (
+        //   circle.y + circle.r + circle.vy > HEIGHT - padding ||
+        //   circle.y - circle.r + circle.vy < padding
+        // ) {
+        //   circle.vx *= -1;
+        //   console.log(
+        //     `vy adjusted to ${circle.vy.toFixed(2)} for y: ${circle.y.toFixed(
+        //       2
+        //     )} with radius ${circle.r.toFixed(2)}  and height: ${HEIGHT}`
+        //   );
+        // }
+      } else if (controlUpdated.endsWith("R")) {
+        console.log("adjust radius");
+        circle.r = random(MIN_RADIUS, MAX_RADIUS);
+
+        let display = false;
+        //check that circle won't be outside canvas
+        if (circle.y + circle.r > HEIGHT - padding) {
+          circle.y = circle.y - circle.r;
+          display = true;
+        } else if (circle.y - circle.r < padding) {
+          circle.y = circle.y + circle.r;
+          display = true;
+        }
+
+        if (circle.x + circle.r > WIDTH - padding) {
+          circle.x = circle.x - circle.r;
+          display = true;
+        } else if (circle.x - circle.r < padding) {
+          circle.y = circle.y + circle.r;
+          display = true;
+        }
+
+        if (display) {
+          console.log(
+            `adjust for radius of ${circle.r.toFixed(
+              2
+            )} for (${circle.x.toFixed(2)}, ${circle.y.toFixed(
+              2
+            )}) with radius ${circle.r.toFixed(2)} and dim ${WIDTH} x ${HEIGHT}`
+          );
+        }
+      } else console.log("adjust nothing");
+    });
+  }
+
+  // add new circles
   for (let i = 0; i < circlesToAdd; i++) {
     const radius = random(MIN_RADIUS, MAX_RADIUS);
-    const padding = parseInt(controls.padding);
+
     circles.push({
-      x: random(padding + radius, WIDTH - padding - radius),
-      y: random(padding + radius, HEIGHT - padding - radius),
-      vx: (Math.round(random()) === 1 ? 1 : -1) * random(controls.minVX, controls.maxVX),
-      vy: (Math.round(random()) === 1 ? 1 : -1) * random(controls.minVY, controls.maxVY),
+      // x: random(padding + radius, WIDTH - padding - radius),
+      // y: random(padding + radius, HEIGHT - padding - radius),
+      x: random(WIDTH / 2 - radius, WIDTH / 2 + radius),
+      y: random(HEIGHT / 2 - radius, HEIGHT / 2 + radius),
+      vx:
+        (Math.round(random(0, 1)) === 1 ? 1 : -1) *
+        random(controls.minVX, controls.maxVX),
+      vy:
+        (Math.round(random(0, 1)) === 1 ? 1 : -1) *
+        random(controls.minVY, controls.maxVY),
       r: radius,
     });
   }
@@ -458,10 +545,10 @@ function generateCircles(circles = null) {
 }
 
 /**
- * Return a random number between min and max values (including min and max)
+ * Return a random number (float) between min and max values (including min and max)
  * @param {number} min
  * @param {number} max
- * @returns number
+ * @returns number a float value between min and max
  */
 function random(min, max) {
   let minF = parseFloat(min);
